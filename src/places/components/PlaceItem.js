@@ -6,8 +6,12 @@ import Modal from '../../shared/UIElements/Modal';
 
 import './PlaceItem.css';
 import { AuthContext } from '../../shared/context/auth-context';
+import { useHttpClient } from '../../shared/hooks/http-hook';
+import ErrorModal from '../../shared/UIElements/ErrorModal';
+import LoadingSpinner from '../../shared/UIElements/LoadingSpinner';
 
 const PlaceItem = props => {
+    const { isLoading, error, sendRequest, clearError } = useHttpClient();
     const auth = useContext(AuthContext);
     const [showMap, setShowMap] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -24,12 +28,23 @@ const PlaceItem = props => {
         setShowConfirmModal(false);
     }
 
-    const confirmDeleteHandler = () => {
+    const confirmDeleteHandler = async () => {
         setShowConfirmModal(false);
-        console.log("deleting...");
+        try{
+            await sendRequest(`${process.env.REACT_APP_BACKEND_URL}/places/${props.id}`, 
+            'DELETE',
+            null,
+            {
+                Authorization: 'Bearer ' + auth.token
+            }
+            )
+            props.onDelete(props.id);
+
+        }catch(err){}
     }
 
     return <React.Fragment>
+            <ErrorModal error={error} onClear={ clearError } />
             <Modal show={showMap} 
                     onCancel={closeMapHandler}
                     header={props.address}
@@ -57,9 +72,10 @@ const PlaceItem = props => {
                     Please note that it can't be undone thereafter</p>
             </Modal>
                 <li className="place-item">
+                    { isLoading && <LoadingSpinner asOverlay />}
                     <Card className="place-item__content">
                         <div className="place-item__image">
-                            <img src={props.image} alt={props.title} />
+                            <img src={`${process.env.REACT_APP_ASSET_URL}/${props.image}`} alt={props.title} />
                         </div>
                         <div className="place-item__info">
                             <h2>{props.title}</h2>
@@ -71,10 +87,13 @@ const PlaceItem = props => {
                             <Button inverse onClick={openMapHandler}>VIEW ON MAP</Button>
                         )}
 
-                        {auth.isLoggedIn && (
+                        {auth.userId === props.creatorId && (
                             <Button to={`/places/${props.id}`}>EDIT</Button>
                         )}
+
+                        {auth.userId === props.creatorId && (
                             <Button danger onClick={showDeleteWarningHandler}>DELETE</Button>
+                        )}
                         </div>
 
                     </Card>
